@@ -1,0 +1,1972 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MarkWrite - Modern Markdown Editor</title>
+    <meta name="description" content="A modern WYSIWYG Markdown editor for distraction-free writing">
+    <meta name="author" content="trstnbde">
+    <meta name="copyright" content="Copyright (c) 2025 trstnbde. Licensed under MIT.">
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Google Fonts - Noto Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Marked.js for Markdown parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+    <style>
+        /*
+         * MarkWrite - Modern Markdown Editor
+         * Copyright (c) 2025 trstnbde
+         * Licensed under the MIT License
+         * https://github.com/trstnbde
+         */
+
+        /* ===== CSS CUSTOM PROPERTIES ===== */
+        :root {
+            /* Colors */
+            --color-primary: #3b82f6;
+            --color-primary-hover: #2563eb;
+            --color-secondary: #6b7280;
+            --color-text: #333333;
+            --color-text-light: #666666;
+            --color-bg: #ffffff;
+            --color-bg-alt: #f9fafb;
+            --color-border: #e5e7eb;
+            --color-border-dark: #d1d5db;
+
+            /* Spacing */
+            --editor-padding: 3rem;
+            --editor-max-width: 80rem;
+            --window-mode-max-width: 56rem;
+
+            /* Typography */
+            --font-family: 'Noto Sans', sans-serif;
+            --font-mono: 'Courier New', monospace;
+            --line-height: 1.6;
+
+            /* Transitions */
+            --transition-speed: 0.2s;
+
+            /* Z-Index */
+            --z-toolbar: 100;
+            --z-dropdown: 1000;
+            --z-modal: 10000;
+        }
+
+        * {
+            font-family: var(--font-family);
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background: var(--color-bg-alt);
+        }
+
+        /* ===== LAYOUT MODES ===== */
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        .editor-wrapper {
+            flex: 1;
+            overflow-y: auto;
+            transition: all var(--transition-speed) ease;
+        }
+
+        /* Full Page Mode (Default) */
+        .editor-wrapper.full-page {
+            width: 100%;
+        }
+
+        .editor-wrapper.full-page .editor-content {
+            max-width: var(--editor-max-width);
+            margin: 0 auto;
+            padding: var(--editor-padding);
+        }
+
+        /* Window Mode (Focused Writing) */
+        .editor-wrapper.window-mode {
+            max-width: var(--window-mode-max-width);
+            margin: 2rem auto;
+            background: var(--color-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06);
+        }
+
+        .editor-wrapper.window-mode .editor-content {
+            padding: var(--editor-padding);
+        }
+
+        /* ===== EDITOR STYLING ===== */
+        #editor {
+            outline: none;
+            line-height: var(--line-height);
+            color: var(--color-text);
+            min-height: 70vh;
+            word-wrap: break-word;
+        }
+
+        #editor:empty:before {
+            content: attr(data-placeholder);
+            color: var(--color-text-light);
+            font-style: italic;
+        }
+
+        /* Markdown Rendering Styles */
+        #editor h1 {
+            font-size: 2em;
+            font-weight: 700;
+            margin: 0.67em 0;
+            border-bottom: 2px solid var(--color-border);
+            padding-bottom: 0.3em;
+            color: var(--color-text);
+        }
+
+        #editor h2 {
+            font-size: 1.5em;
+            font-weight: 600;
+            margin: 0.75em 0 0.5em 0;
+            border-bottom: 1px solid var(--color-border);
+            padding-bottom: 0.3em;
+        }
+
+        #editor h3 {
+            font-size: 1.17em;
+            font-weight: 600;
+            margin: 1em 0 0.5em 0;
+        }
+
+        #editor h4 {
+            font-size: 1em;
+            font-weight: 600;
+            margin: 1.33em 0 0.5em 0;
+        }
+
+        #editor h5 {
+            font-size: 0.83em;
+            font-weight: 600;
+            margin: 1.67em 0 0.5em 0;
+        }
+
+        #editor h6 {
+            font-size: 0.67em;
+            font-weight: 600;
+            margin: 2.33em 0 0.5em 0;
+            text-transform: uppercase;
+        }
+
+        #editor p {
+            margin: 1em 0;
+        }
+
+        #editor blockquote {
+            border-left: 4px solid var(--color-border-dark);
+            padding-left: 1em;
+            margin: 1em 0;
+            color: var(--color-text-light);
+            font-style: italic;
+        }
+
+        #editor code {
+            background-color: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: var(--font-mono);
+            font-size: 0.9em;
+            color: #e83e8c;
+        }
+
+        #editor pre {
+            background-color: #f4f4f4;
+            padding: 1em;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 1em 0;
+        }
+
+        #editor pre code {
+            background-color: transparent;
+            padding: 0;
+            color: var(--color-text);
+        }
+
+        #editor ul, #editor ol {
+            margin: 1em 0;
+            padding-left: 2em;
+        }
+
+        #editor ul {
+            list-style-type: disc;
+            list-style-position: outside;
+        }
+
+        #editor ol {
+            list-style-type: decimal;
+            list-style-position: outside;
+        }
+
+        #editor ul ul {
+            list-style-type: circle;
+        }
+
+        #editor ul ul ul {
+            list-style-type: square;
+        }
+
+        #editor li {
+            margin: 0.5em 0;
+            display: list-item;
+        }
+
+        #editor a {
+            color: var(--color-primary);
+            text-decoration: none;
+            transition: color var(--transition-speed);
+        }
+
+        #editor a:hover {
+            text-decoration: underline;
+            color: var(--color-primary-hover);
+        }
+
+        #editor strong, #editor b {
+            font-weight: 600;
+        }
+
+        #editor em, #editor i {
+            font-style: italic;
+        }
+
+        #editor hr {
+            border: none;
+            border-top: 2px solid var(--color-border);
+            margin: 2em 0;
+        }
+
+        #editor table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 1em 0;
+        }
+
+        #editor table th,
+        #editor table td {
+            border: 1px solid var(--color-border-dark);
+            padding: 8px 12px;
+            text-align: left;
+        }
+
+        #editor table th {
+            background-color: #f4f4f4;
+            font-weight: 600;
+        }
+
+        #editor img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+        }
+
+        #editor del, #editor s {
+            text-decoration: line-through;
+        }
+
+        #editor u {
+            text-decoration: underline;
+        }
+
+        /* Text Alignment */
+        #editor [style*="text-align: center"] {
+            text-align: center;
+        }
+
+        #editor [style*="text-align: right"] {
+            text-align: right;
+        }
+
+        #editor [style*="text-align: justify"] {
+            text-align: justify;
+        }
+
+        /* ===== SCROLLBAR STYLING ===== */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        /* ===== TOOLBAR STYLING ===== */
+        .main-toolbar {
+            background: var(--color-bg);
+            border-bottom: 1px solid var(--color-border);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            position: sticky;
+            top: 0;
+            z-index: var(--z-toolbar);
+        }
+
+        .btn-hover {
+            transition: all var(--transition-speed);
+        }
+
+        .btn-hover:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .btn-hover:active {
+            transform: translateY(0);
+        }
+
+        #fileName {
+            font-size: 0.9em;
+            color: var(--color-text-light);
+        }
+
+        /* ===== FORMATTING TOOLBAR ===== */
+        #formattingToolbar {
+            position: sticky;
+            top: 0;
+            z-index: var(--z-toolbar);
+            background: var(--color-bg);
+            border-bottom: 1px solid var(--color-border);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .toolbar-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border: 1px solid var(--color-border);
+            background: var(--color-bg);
+            color: var(--color-secondary);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all var(--transition-speed);
+            font-size: 14px;
+        }
+
+        .toolbar-btn:hover {
+            background: var(--color-bg-alt);
+            border-color: var(--color-border-dark);
+            color: var(--color-text);
+        }
+
+        .toolbar-btn:active {
+            background: var(--color-border);
+        }
+
+        .toolbar-btn.active {
+            background: var(--color-primary);
+            border-color: var(--color-primary-hover);
+            color: white;
+        }
+
+        .toolbar-btn.active:hover {
+            background: var(--color-primary-hover);
+        }
+
+        .toolbar-divider {
+            width: 1px;
+            height: 24px;
+            background: var(--color-border);
+            margin: 0 8px;
+        }
+
+        /* ===== DROPDOWN STYLES ===== */
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .dropdown-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border: 1px solid var(--color-border);
+            background: var(--color-bg);
+            color: var(--color-secondary);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all var(--transition-speed);
+            font-size: 14px;
+            min-width: 140px;
+        }
+
+        .dropdown-toggle:hover {
+            background: var(--color-bg-alt);
+            border-color: var(--color-border-dark);
+        }
+
+        .dropdown-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            margin-top: 4px;
+            background: var(--color-bg);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            min-width: 180px;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: var(--z-dropdown);
+            display: none;
+        }
+
+        .dropdown-menu.show {
+            display: block;
+            animation: fadeIn 0.15s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-8px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .dropdown-item {
+            display: block;
+            width: 100%;
+            padding: 10px 16px;
+            border: none;
+            background: none;
+            text-align: left;
+            cursor: pointer;
+            transition: background var(--transition-speed);
+            font-size: 14px;
+            color: var(--color-text);
+        }
+
+        .dropdown-item:hover {
+            background: var(--color-bg-alt);
+        }
+
+        .dropdown-item.active {
+            background: #eff6ff;
+            color: var(--color-primary);
+        }
+
+        /* ===== MODAL STYLES ===== */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: var(--z-modal);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .modal-content {
+            background: var(--color-bg);
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 20px 25px rgba(0,0,0,0.15);
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--color-text);
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: #9ca3af;
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            transition: all var(--transition-speed);
+        }
+
+        .modal-close:hover {
+            background: var(--color-bg-alt);
+            color: var(--color-secondary);
+        }
+
+        .modal-body {
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--color-text);
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--color-border-dark);
+            border-radius: 6px;
+            font-size: 14px;
+            transition: all var(--transition-speed);
+            font-family: var(--font-family);
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .form-input.error {
+            border-color: #ef4444;
+        }
+
+        .form-error {
+            color: #ef4444;
+            font-size: 0.875rem;
+            margin-top: 4px;
+            display: none;
+        }
+
+        .form-error.show {
+            display: block;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition-speed);
+        }
+
+        .btn-primary {
+            background: var(--color-primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--color-primary-hover);
+        }
+
+        .btn-primary:disabled {
+            background: var(--color-border-dark);
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: var(--color-border);
+            color: var(--color-secondary);
+        }
+
+        .btn-secondary:hover {
+            background: var(--color-border-dark);
+        }
+
+        /* ===== ADVANCED TOOLS TOGGLE ===== */
+        .advanced-tools {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+
+        .advanced-tools.expanded {
+            max-height: 200px;
+        }
+
+        /* ===== AUTO-SAVE INDICATOR ===== */
+        .auto-save-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.875rem;
+            color: var(--color-text-light);
+            padding: 4px 12px;
+            border-radius: 6px;
+            background: var(--color-bg-alt);
+        }
+
+        .auto-save-indicator.saving {
+            color: var(--color-primary);
+        }
+
+        .auto-save-indicator.saved {
+            color: #10b981;
+        }
+
+        /* ===== RESPONSIVE DESIGN (MOBILE FIRST) ===== */
+        @media (max-width: 768px) {
+            :root {
+                --editor-padding: 1.5rem;
+            }
+
+            .toolbar-btn {
+                width: 32px;
+                height: 32px;
+                font-size: 13px;
+            }
+
+            .dropdown-toggle {
+                min-width: 100px;
+                padding: 6px 10px;
+                font-size: 13px;
+            }
+
+            .toolbar-divider {
+                margin: 0 4px;
+            }
+
+            .editor-wrapper.window-mode {
+                margin: 1rem;
+                border-radius: 8px;
+            }
+
+            #editor {
+                font-size: 16px; /* Prevent zoom on iOS */
+            }
+        }
+
+        @media (max-width: 640px) {
+            :root {
+                --editor-padding: 1rem;
+            }
+
+            .main-toolbar .flex {
+                flex-wrap: wrap;
+                gap: 0.5rem;
+            }
+
+            #formattingToolbar .flex {
+                flex-wrap: wrap;
+                gap: 0.25rem;
+            }
+        }
+
+        /* ===== PRINT STYLES ===== */
+        @media print {
+            .main-toolbar,
+            #formattingToolbar,
+            .modal {
+                display: none !important;
+            }
+
+            body {
+                background: white;
+            }
+
+            #editor {
+                max-width: 100%;
+                padding: 0;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="app-container">
+        <!-- Main Toolbar -->
+        <div class="main-toolbar">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between flex-wrap gap-3">
+                <div class="flex items-center space-x-4 flex-wrap">
+                    <h1 class="text-xl font-semibold text-gray-800">MarkWrite</h1>
+                    <span id="fileName" class="text-sm text-gray-500 italic">Unbenanntes Dokument</span>
+                    <div class="auto-save-indicator" id="autoSaveIndicator">
+                        <i class="fas fa-circle" style="font-size: 8px;"></i>
+                        <span id="autoSaveText">Nicht gespeichert</span>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2 flex-wrap">
+                    <button id="viewModeBtn" class="btn-hover px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200 text-sm font-medium" title="Ansichtsmodus wechseln">
+                        <i class="fas fa-expand-alt"></i>
+                    </button>
+                    <button id="openBtn" class="btn-hover px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all duration-200 text-sm font-medium" title="Datei öffnen (Strg+O)">
+                        <i class="fas fa-folder-open"></i> <span class="hidden sm:inline">Öffnen</span>
+                    </button>
+                    <button id="saveBtn" class="btn-hover px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-all duration-200 text-sm font-medium" title="Als Markdown speichern (Strg+S)">
+                        <i class="fas fa-save"></i> <span class="hidden sm:inline">Speichern</span>
+                    </button>
+                    <button id="exportHtmlBtn" class="btn-hover px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-all duration-200 text-sm font-medium" title="Als HTML exportieren (Strg+E)">
+                        <i class="fas fa-file-code"></i> <span class="hidden sm:inline">HTML</span>
+                    </button>
+                    <button id="newBtn" class="btn-hover px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-all duration-200 text-sm font-medium" title="Neues Dokument (Strg+N)">
+                        <i class="fas fa-file"></i> <span class="hidden sm:inline">Neu</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Formatting Toolbar -->
+        <div id="formattingToolbar">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3">
+                <!-- Main Formatting Tools -->
+                <div class="flex items-center gap-2 flex-wrap">
+                    <!-- Paragraph Format Dropdown -->
+                    <div class="dropdown">
+                        <button class="dropdown-toggle" id="paragraphDropdownToggle" aria-label="Absatzformat wählen" aria-haspopup="true" aria-expanded="false">
+                            <span id="currentFormat">Normal</span>
+                            <i class="fas fa-chevron-down" style="font-size: 12px;"></i>
+                        </button>
+                        <div class="dropdown-menu" id="paragraphDropdown" role="menu">
+                            <button class="dropdown-item" data-format="p" role="menuitem">Normal</button>
+                            <button class="dropdown-item" data-format="h1" role="menuitem" style="font-size: 18px; font-weight: 600;">Überschrift 1</button>
+                            <button class="dropdown-item" data-format="h2" role="menuitem" style="font-size: 16px; font-weight: 600;">Überschrift 2</button>
+                            <button class="dropdown-item" data-format="h3" role="menuitem" style="font-size: 15px; font-weight: 600;">Überschrift 3</button>
+                            <button class="dropdown-item" data-format="h4" role="menuitem" style="font-weight: 600;">Überschrift 4</button>
+                            <button class="dropdown-item" data-format="h5" role="menuitem" style="font-size: 13px; font-weight: 600;">Überschrift 5</button>
+                            <button class="dropdown-item" data-format="h6" role="menuitem" style="font-size: 12px; font-weight: 600;">Überschrift 6</button>
+                            <button class="dropdown-item" data-format="pre" role="menuitem" style="font-family: monospace;">Code Block</button>
+                        </div>
+                    </div>
+
+                    <div class="toolbar-divider"></div>
+
+                    <!-- Text Style Buttons -->
+                    <button class="toolbar-btn" id="boldBtn" title="Fett (Strg+B)" aria-label="Fett formatieren">
+                        <i class="fas fa-bold"></i>
+                    </button>
+                    <button class="toolbar-btn" id="italicBtn" title="Kursiv (Strg+I)" aria-label="Kursiv formatieren">
+                        <i class="fas fa-italic"></i>
+                    </button>
+                    <button class="toolbar-btn" id="underlineBtn" title="Unterstrichen (Strg+U)" aria-label="Unterstrichen formatieren">
+                        <i class="fas fa-underline"></i>
+                    </button>
+                    <button class="toolbar-btn" id="strikeBtn" title="Durchgestrichen" aria-label="Durchgestrichen formatieren">
+                        <i class="fas fa-strikethrough"></i>
+                    </button>
+
+                    <div class="toolbar-divider"></div>
+
+                    <!-- Blockquote Button -->
+                    <button class="toolbar-btn" id="quoteBtn" title="Blockzitat" aria-label="Als Blockzitat formatieren">
+                        <i class="fas fa-quote-left"></i>
+                    </button>
+
+                    <!-- Link Button -->
+                    <button class="toolbar-btn" id="linkBtn" title="Link einfügen (Strg+K)" aria-label="Link einfügen">
+                        <i class="fas fa-link"></i>
+                    </button>
+
+                    <div class="toolbar-divider"></div>
+
+                    <!-- Text Alignment Buttons -->
+                    <button class="toolbar-btn" id="alignLeftBtn" title="Linksbündig" aria-label="Text linksbündig ausrichten">
+                        <i class="fas fa-align-left"></i>
+                    </button>
+                    <button class="toolbar-btn" id="alignCenterBtn" title="Zentriert" aria-label="Text zentrieren">
+                        <i class="fas fa-align-center"></i>
+                    </button>
+                    <button class="toolbar-btn" id="alignRightBtn" title="Rechtsbündig" aria-label="Text rechtsbündig ausrichten">
+                        <i class="fas fa-align-right"></i>
+                    </button>
+                    <button class="toolbar-btn" id="alignJustifyBtn" title="Blocksatz" aria-label="Text im Blocksatz ausrichten">
+                        <i class="fas fa-align-justify"></i>
+                    </button>
+
+                    <div class="toolbar-divider"></div>
+
+                    <!-- Toggle Advanced Tools Button -->
+                    <button class="toolbar-btn" id="toggleAdvancedBtn" title="Erweiterte Werkzeuge" aria-label="Erweiterte Werkzeuge ein-/ausblenden" aria-expanded="false">
+                        <i class="fas fa-ellipsis-h"></i>
+                    </button>
+                </div>
+
+                <!-- Advanced Tools (Collapsible) -->
+                <div class="advanced-tools" id="advancedTools">
+                    <div class="flex items-center gap-2 flex-wrap mt-3 pt-3 border-t border-gray-200">
+                        <button class="toolbar-btn" id="ulBtn" title="Ungeordnete Liste" aria-label="Ungeordnete Liste einfügen">
+                            <i class="fas fa-list-ul"></i>
+                        </button>
+                        <button class="toolbar-btn" id="olBtn" title="Nummerierte Liste" aria-label="Nummerierte Liste einfügen">
+                            <i class="fas fa-list-ol"></i>
+                        </button>
+                        <button class="toolbar-btn" id="hrBtn" title="Horizontale Linie" aria-label="Horizontale Linie einfügen">
+                            <i class="fas fa-minus"></i>
+                        </button>
+                        <button class="toolbar-btn" id="codeBtn" title="Inline-Code" aria-label="Inline-Code formatieren">
+                            <i class="fas fa-code"></i>
+                        </button>
+                        <button class="toolbar-btn" id="tableBtn" title="Tabelle einfügen" aria-label="Tabelle einfügen">
+                            <i class="fas fa-table"></i>
+                        </button>
+                        <button class="toolbar-btn" id="undoBtn" title="Rückgängig (Strg+Z)" aria-label="Rückgängig">
+                            <i class="fas fa-undo"></i>
+                        </button>
+                        <button class="toolbar-btn" id="redoBtn" title="Wiederholen (Strg+Y)" aria-label="Wiederholen">
+                            <i class="fas fa-redo"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Editor Wrapper -->
+        <div class="editor-wrapper full-page" id="editorWrapper">
+            <div class="editor-content">
+                <div id="editor"
+                     contenteditable="true"
+                     spellcheck="true"
+                     data-placeholder="Beginnen Sie mit dem Schreiben oder öffnen Sie eine Datei..."
+                     role="textbox"
+                     aria-label="Markdown Editor"
+                     aria-multiline="true">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Link Modal -->
+    <div class="modal" id="linkModal" role="dialog" aria-labelledby="linkModalTitle" aria-modal="true">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="linkModalTitle">Link einfügen</h3>
+                <button class="modal-close" id="linkModalClose" aria-label="Schließen">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label" for="linkText">Link-Text</label>
+                    <input type="text" class="form-input" id="linkText" placeholder="Text des Links" autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="linkUrl">URL *</label>
+                    <input type="url" class="form-input" id="linkUrl" placeholder="https://example.com" required autocomplete="off">
+                    <div class="form-error" id="linkUrlError">Bitte geben Sie eine gültige URL ein</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="linkModalCancel">Abbrechen</button>
+                <button class="btn btn-primary" id="linkModalInsert">Einfügen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden file input for fallback -->
+    <input type="file" id="fileInput" accept=".md,.html,.txt" style="display: none;">
+
+    <script>
+        /**
+         * MarkWrite - Modern Markdown Editor
+         * Copyright (c) 2025 trstnbde
+         * Licensed under the MIT License
+         * https://github.com/trstnbde
+         */
+
+        'use strict';
+
+        // ===== CONSTANTS =====
+        const STORAGE_KEY = 'markwrite-content';
+        const STORAGE_KEY_FILENAME = 'markwrite-filename';
+        const STORAGE_KEY_VIEWMODE = 'markwrite-viewmode';
+        const AUTO_SAVE_DELAY = 2000; // ms
+        const TYPING_DELAY = 500; // ms
+
+        // URL validation regex (RFC 3986 compliant)
+        const URL_REGEX = /^(?:(?:https?|ftp):\/\/)(?:\S+(?::\S*)?@)?(?:(?!(?:10|127)(?:\.\d{1,3}){3})(?!(?:169\.254|192\.168)(?:\.\d{1,3}){2})(?!172\.(?:1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2})(?:[1-9]\d?|1\d\d|2[01]\d|22[0-3])(?:\.(?:1?\d{1,2}|2[0-4]\d|25[0-5])){2}(?:\.(?:[1-9]\d?|1\d\d|2[0-4]\d|25[0-4]))|(?:(?:[a-z\u00a1-\uffff0-9]-*)*[a-z\u00a1-\uffff0-9]+)(?:\.(?:[a-z\u00a1-\uffff0-9]-*)*[a-z\u00a1-\uffff0-9]+)*(?:\.(?:[a-z\u00a1-\uffff]{2,}))\.?)(?::\d{2,5})?(?:[/?#]\S*)?$/i;
+
+        // ===== GLOBAL STATE =====
+        const state = {
+            currentFileHandle: null,
+            currentFileName: 'Unbenanntes Dokument',
+            isTyping: false,
+            typingTimer: null,
+            autoSaveTimer: null,
+            viewMode: 'full-page', // 'full-page' or 'window-mode'
+            isDirty: false,
+            savedSelection: null // For link insertion
+        };
+
+        // ===== DOM ELEMENTS =====
+        const elements = {
+            // Main UI
+            editor: document.getElementById('editor'),
+            editorWrapper: document.getElementById('editorWrapper'),
+            fileNameDisplay: document.getElementById('fileName'),
+            autoSaveIndicator: document.getElementById('autoSaveIndicator'),
+            autoSaveText: document.getElementById('autoSaveText'),
+            fileInput: document.getElementById('fileInput'),
+
+            // Main toolbar buttons
+            openBtn: document.getElementById('openBtn'),
+            saveBtn: document.getElementById('saveBtn'),
+            exportHtmlBtn: document.getElementById('exportHtmlBtn'),
+            newBtn: document.getElementById('newBtn'),
+            viewModeBtn: document.getElementById('viewModeBtn'),
+
+            // Formatting toolbar
+            paragraphDropdownToggle: document.getElementById('paragraphDropdownToggle'),
+            paragraphDropdown: document.getElementById('paragraphDropdown'),
+            currentFormatDisplay: document.getElementById('currentFormat'),
+            boldBtn: document.getElementById('boldBtn'),
+            italicBtn: document.getElementById('italicBtn'),
+            underlineBtn: document.getElementById('underlineBtn'),
+            strikeBtn: document.getElementById('strikeBtn'),
+            quoteBtn: document.getElementById('quoteBtn'),
+            linkBtn: document.getElementById('linkBtn'),
+            alignLeftBtn: document.getElementById('alignLeftBtn'),
+            alignCenterBtn: document.getElementById('alignCenterBtn'),
+            alignRightBtn: document.getElementById('alignRightBtn'),
+            alignJustifyBtn: document.getElementById('alignJustifyBtn'),
+            toggleAdvancedBtn: document.getElementById('toggleAdvancedBtn'),
+            advancedTools: document.getElementById('advancedTools'),
+            ulBtn: document.getElementById('ulBtn'),
+            olBtn: document.getElementById('olBtn'),
+            hrBtn: document.getElementById('hrBtn'),
+            codeBtn: document.getElementById('codeBtn'),
+            tableBtn: document.getElementById('tableBtn'),
+            undoBtn: document.getElementById('undoBtn'),
+            redoBtn: document.getElementById('redoBtn'),
+
+            // Link modal
+            linkModal: document.getElementById('linkModal'),
+            linkModalClose: document.getElementById('linkModalClose'),
+            linkModalCancel: document.getElementById('linkModalCancel'),
+            linkModalInsert: document.getElementById('linkModalInsert'),
+            linkText: document.getElementById('linkText'),
+            linkUrl: document.getElementById('linkUrl'),
+            linkUrlError: document.getElementById('linkUrlError')
+        };
+
+        // ===== MARKDOWN CONFIGURATION =====
+        marked.setOptions({
+            breaks: true,
+            gfm: true,
+            headerIds: true,
+            mangle: false,
+            sanitize: false,
+            smartLists: true,
+            smartypants: true
+        });
+
+        // ===== UTILITY FUNCTIONS =====
+
+        /**
+         * Safe localStorage access with error handling
+         */
+        const storage = {
+            get(key, defaultValue = null) {
+                try {
+                    const item = localStorage.getItem(key);
+                    return item !== null ? item : defaultValue;
+                } catch (error) {
+                    console.error('LocalStorage get error:', error);
+                    return defaultValue;
+                }
+            },
+
+            set(key, value) {
+                try {
+                    localStorage.setItem(key, value);
+                    return true;
+                } catch (error) {
+                    console.error('LocalStorage set error:', error);
+                    return false;
+                }
+            },
+
+            remove(key) {
+                try {
+                    localStorage.removeItem(key);
+                    return true;
+                } catch (error) {
+                    console.error('LocalStorage remove error:', error);
+                    return false;
+                }
+            }
+        };
+
+        /**
+         * Validate URL
+         */
+        function isValidUrl(string) {
+            // Allow relative URLs
+            if (string.startsWith('/') || string.startsWith('./') || string.startsWith('../')) {
+                return true;
+            }
+            // Allow mailto: and tel: links
+            if (string.startsWith('mailto:') || string.startsWith('tel:')) {
+                return true;
+            }
+            // Validate full URLs
+            return URL_REGEX.test(string);
+        }
+
+        /**
+         * Update file name display
+         */
+        function updateFileName(name) {
+            state.currentFileName = name;
+            elements.fileNameDisplay.textContent = name;
+            storage.set(STORAGE_KEY_FILENAME, name);
+        }
+
+        /**
+         * Save/restore cursor position
+         */
+        function saveCursorPosition() {
+            const selection = window.getSelection();
+            return selection.rangeCount > 0 ? selection.getRangeAt(0).cloneRange() : null;
+        }
+
+        function restoreCursorPosition(range) {
+            if (range) {
+                try {
+                    const selection = window.getSelection();
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                } catch (error) {
+                    console.warn('Could not restore cursor position:', error);
+                }
+            }
+        }
+
+        /**
+         * Extract markdown from editor
+         */
+        function getMarkdownFromEditor() {
+            return elements.editor.innerText || '';
+        }
+
+        /**
+         * Extract HTML from editor
+         */
+        function getHtmlFromEditor() {
+            return elements.editor.innerHTML;
+        }
+
+        /**
+         * Render markdown to HTML
+         */
+        function renderMarkdownToHtml(markdownText) {
+            try {
+                return marked.parse(markdownText);
+            } catch (error) {
+                console.error('Markdown parsing error:', error);
+                showNotification('Fehler beim Parsen des Markdown', 'error');
+                return `<p>${markdownText}</p>`;
+            }
+        }
+
+        /**
+         * Update editor content
+         */
+        function updateEditorContent(html) {
+            const cursorPos = saveCursorPosition();
+            elements.editor.innerHTML = html;
+            restoreCursorPosition(cursorPos);
+        }
+
+        /**
+         * Show notification (simple implementation)
+         */
+        function showNotification(message, type = 'info') {
+            if (type === 'error') {
+                alert('Fehler: ' + message);
+            }
+        }
+
+        /**
+         * Update auto-save indicator
+         */
+        function updateAutoSaveIndicator(status) {
+            const indicator = elements.autoSaveIndicator;
+            const text = elements.autoSaveText;
+
+            indicator.classList.remove('saving', 'saved');
+
+            switch (status) {
+                case 'saving':
+                    indicator.classList.add('saving');
+                    text.textContent = 'Speichert...';
+                    break;
+                case 'saved':
+                    indicator.classList.add('saved');
+                    text.textContent = 'Gespeichert';
+                    state.isDirty = false;
+                    break;
+                default:
+                    text.textContent = 'Nicht gespeichert';
+                    state.isDirty = true;
+            }
+        }
+
+        // ===== AUTO-SAVE FUNCTIONALITY =====
+
+        /**
+         * Auto-save to localStorage
+         */
+        function autoSave() {
+            updateAutoSaveIndicator('saving');
+
+            const content = getHtmlFromEditor();
+            const success = storage.set(STORAGE_KEY, content);
+
+            if (success) {
+                updateAutoSaveIndicator('saved');
+            }
+        }
+
+        /**
+         * Restore from localStorage
+         */
+        function restoreFromLocalStorage() {
+            const savedContent = storage.get(STORAGE_KEY);
+            const savedFileName = storage.get(STORAGE_KEY_FILENAME);
+            const savedViewMode = storage.get(STORAGE_KEY_VIEWMODE);
+
+            if (savedContent) {
+                elements.editor.innerHTML = savedContent;
+                updateAutoSaveIndicator('saved');
+            }
+
+            if (savedFileName) {
+                updateFileName(savedFileName);
+            }
+
+            if (savedViewMode) {
+                state.viewMode = savedViewMode;
+                applyViewMode();
+            }
+        }
+
+        /**
+         * Trigger auto-save with debouncing
+         */
+        function scheduleAutoSave() {
+            clearTimeout(state.autoSaveTimer);
+            state.autoSaveTimer = setTimeout(autoSave, AUTO_SAVE_DELAY);
+            updateAutoSaveIndicator('unsaved');
+        }
+
+        // ===== VIEW MODE FUNCTIONALITY =====
+
+        /**
+         * Toggle between full-page and window mode
+         */
+        function toggleViewMode() {
+            state.viewMode = state.viewMode === 'full-page' ? 'window-mode' : 'full-page';
+            applyViewMode();
+            storage.set(STORAGE_KEY_VIEWMODE, state.viewMode);
+        }
+
+        /**
+         * Apply current view mode
+         */
+        function applyViewMode() {
+            const wrapper = elements.editorWrapper;
+            const btn = elements.viewModeBtn;
+
+            if (state.viewMode === 'window-mode') {
+                wrapper.classList.remove('full-page');
+                wrapper.classList.add('window-mode');
+                btn.innerHTML = '<i class="fas fa-expand"></i>';
+                btn.title = 'Vollbild-Modus';
+            } else {
+                wrapper.classList.remove('window-mode');
+                wrapper.classList.add('full-page');
+                btn.innerHTML = '<i class="fas fa-compress-alt"></i>';
+                btn.title = 'Fokus-Modus';
+            }
+        }
+
+        // ===== FORMATTING TOOLBAR FUNCTIONS =====
+
+        /**
+         * Execute formatting command
+         */
+        function execCommand(command, value = null) {
+            try {
+                document.execCommand(command, false, value);
+                elements.editor.focus();
+                updateToolbarState();
+                scheduleAutoSave();
+            } catch (error) {
+                console.error('ExecCommand error:', error);
+            }
+        }
+
+        /**
+         * Format block element
+         */
+        function formatBlock(tag) {
+            const selection = window.getSelection();
+            if (!selection.rangeCount) return;
+
+            try {
+                document.execCommand('formatBlock', false, tag);
+                elements.editor.focus();
+                updateCurrentFormat();
+                updateToolbarState();
+                scheduleAutoSave();
+            } catch (error) {
+                console.error('Format block error:', error);
+            }
+        }
+
+        /**
+         * Insert link - IMPROVED with better validation and error handling
+         */
+        function insertLink(text, url) {
+            // Validate URL
+            if (!isValidUrl(url)) {
+                elements.linkUrl.classList.add('error');
+                elements.linkUrlError.classList.add('show');
+                elements.linkUrl.focus();
+                return false;
+            }
+
+            // Restore saved selection if available
+            if (state.savedSelection) {
+                try {
+                    const selection = window.getSelection();
+                    selection.removeAllRanges();
+                    selection.addRange(state.savedSelection);
+                } catch (error) {
+                    console.warn('Could not restore selection:', error);
+                }
+            }
+
+            const selection = window.getSelection();
+
+            if (selection.rangeCount > 0) {
+                try {
+                    const range = selection.getRangeAt(0);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.textContent = text || url;
+                    link.target = url.startsWith('http') ? '_blank' : '_self';
+                    link.rel = url.startsWith('http') ? 'noopener noreferrer' : '';
+
+                    range.deleteContents();
+                    range.insertNode(link);
+
+                    // Add space after link for better UX
+                    const space = document.createTextNode(' ');
+                    range.setStartAfter(link);
+                    range.insertNode(space);
+
+                    // Move cursor after the space
+                    range.setStartAfter(space);
+                    range.setEndAfter(space);
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+
+                    elements.editor.focus();
+                    scheduleAutoSave();
+                    return true;
+                } catch (error) {
+                    console.error('Error inserting link:', error);
+                    return false;
+                }
+            }
+
+            return false;
+        }
+
+        /**
+         * Set text alignment
+         */
+        function setAlignment(align) {
+            const selection = window.getSelection();
+            if (!selection.rangeCount) return;
+
+            const range = selection.getRangeAt(0);
+            let element = range.commonAncestorContainer;
+
+            while (element && element !== elements.editor) {
+                if (element.nodeType === Node.ELEMENT_NODE &&
+                    ['P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'DIV', 'BLOCKQUOTE'].includes(element.tagName)) {
+                    element.style.textAlign = align;
+                    break;
+                }
+                element = element.parentNode;
+            }
+
+            elements.editor.focus();
+            updateToolbarState();
+            scheduleAutoSave();
+        }
+
+        /**
+         * Insert horizontal rule
+         */
+        function insertHorizontalRule() {
+            execCommand('insertHorizontalRule');
+        }
+
+        /**
+         * Insert table
+         */
+        function insertTable() {
+            const tableHTML = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Spalte 1</th>
+                            <th>Spalte 2</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Zelle 1</td>
+                            <td>Zelle 2</td>
+                        </tr>
+                        <tr>
+                            <td>Zelle 3</td>
+                            <td>Zelle 4</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p><br></p>
+            `;
+            document.execCommand('insertHTML', false, tableHTML);
+            elements.editor.focus();
+            scheduleAutoSave();
+        }
+
+        /**
+         * Update current format display
+         */
+        function updateCurrentFormat() {
+            const selection = window.getSelection();
+            if (!selection.rangeCount) return;
+
+            let element = selection.anchorNode;
+            const formatMap = {
+                'H1': 'Überschrift 1',
+                'H2': 'Überschrift 2',
+                'H3': 'Überschrift 3',
+                'H4': 'Überschrift 4',
+                'H5': 'Überschrift 5',
+                'H6': 'Überschrift 6',
+                'PRE': 'Code Block',
+                'P': 'Normal',
+                'DIV': 'Normal'
+            };
+
+            while (element && element !== elements.editor) {
+                if (element.nodeType === Node.ELEMENT_NODE && formatMap[element.tagName]) {
+                    elements.currentFormatDisplay.textContent = formatMap[element.tagName];
+                    return;
+                }
+                element = element.parentNode;
+            }
+
+            elements.currentFormatDisplay.textContent = 'Normal';
+        }
+
+        /**
+         * Update toolbar button states
+         */
+        function updateToolbarState() {
+            try {
+                // Text style states
+                elements.boldBtn.classList.toggle('active', document.queryCommandState('bold'));
+                elements.italicBtn.classList.toggle('active', document.queryCommandState('italic'));
+                elements.underlineBtn.classList.toggle('active', document.queryCommandState('underline'));
+                elements.strikeBtn.classList.toggle('active', document.queryCommandState('strikeThrough'));
+
+                // Check alignment and blockquote
+                const selection = window.getSelection();
+                if (selection.rangeCount > 0) {
+                    let element = selection.anchorNode;
+
+                    while (element && element !== elements.editor) {
+                        if (element.nodeType === Node.ELEMENT_NODE) {
+                            const align = window.getComputedStyle(element).textAlign;
+
+                            elements.alignLeftBtn.classList.toggle('active', align === 'left' || align === 'start');
+                            elements.alignCenterBtn.classList.toggle('active', align === 'center');
+                            elements.alignRightBtn.classList.toggle('active', align === 'right' || align === 'end');
+                            elements.alignJustifyBtn.classList.toggle('active', align === 'justify');
+                            elements.quoteBtn.classList.toggle('active', element.tagName === 'BLOCKQUOTE');
+
+                            break;
+                        }
+                        element = element.parentNode;
+                    }
+                }
+
+                updateCurrentFormat();
+            } catch (error) {
+                console.warn('Error updating toolbar state:', error);
+            }
+        }
+
+        /**
+         * Toggle dropdown menu
+         */
+        function toggleDropdown(dropdown, toggle) {
+            const isOpen = dropdown.classList.contains('show');
+
+            // Close all dropdowns
+            document.querySelectorAll('.dropdown-menu').forEach(d => d.classList.remove('show'));
+
+            if (!isOpen) {
+                dropdown.classList.add('show');
+                toggle.setAttribute('aria-expanded', 'true');
+            } else {
+                toggle.setAttribute('aria-expanded', 'false');
+            }
+        }
+
+        /**
+         * Show/hide link modal - IMPROVED
+         */
+        function showLinkModal() {
+            // Save current selection
+            state.savedSelection = saveCursorPosition();
+
+            const selection = window.getSelection();
+            const selectedText = selection.toString();
+
+            elements.linkText.value = selectedText;
+            elements.linkUrl.value = '';
+            elements.linkUrl.classList.remove('error');
+            elements.linkUrlError.classList.remove('show');
+
+            elements.linkModal.classList.add('show');
+            setTimeout(() => {
+                if (selectedText) {
+                    elements.linkUrl.focus();
+                } else {
+                    elements.linkText.focus();
+                }
+            }, 100);
+        }
+
+        function hideLinkModal() {
+            elements.linkModal.classList.remove('show');
+            elements.linkText.value = '';
+            elements.linkUrl.value = '';
+            elements.linkUrl.classList.remove('error');
+            elements.linkUrlError.classList.remove('show');
+            state.savedSelection = null;
+        }
+
+        /**
+         * Toggle advanced tools
+         */
+        function toggleAdvancedTools() {
+            const isExpanded = elements.advancedTools.classList.toggle('expanded');
+            elements.toggleAdvancedBtn.setAttribute('aria-expanded', isExpanded);
+
+            const icon = elements.toggleAdvancedBtn.querySelector('i');
+            icon.className = isExpanded ? 'fas fa-ellipsis-v' : 'fas fa-ellipsis-h';
+        }
+
+        // ===== FILE SYSTEM ACCESS API =====
+
+        /**
+         * Check File System Access API support
+         */
+        function isFileSystemAccessSupported() {
+            return 'showOpenFilePicker' in window;
+        }
+
+        /**
+         * Open file
+         */
+        async function openFile() {
+            try {
+                if (isFileSystemAccessSupported()) {
+                    const [fileHandle] = await window.showOpenFilePicker({
+                        types: [
+                            {
+                                description: 'Text Files',
+                                accept: {
+                                    'text/markdown': ['.md'],
+                                    'text/html': ['.html'],
+                                    'text/plain': ['.txt']
+                                }
+                            }
+                        ],
+                        multiple: false
+                    });
+
+                    state.currentFileHandle = fileHandle;
+                    const file = await fileHandle.getFile();
+                    const content = await file.text();
+
+                    updateFileName(file.name);
+                    loadFileContent(content, file.name);
+                } else {
+                    elements.fileInput.click();
+                }
+            } catch (error) {
+                if (error.name !== 'AbortError') {
+                    console.error('Error opening file:', error);
+                    showNotification('Fehler beim Öffnen der Datei: ' + error.message, 'error');
+                }
+            }
+        }
+
+        /**
+         * Load file content
+         */
+        function loadFileContent(content, fileName) {
+            if (fileName.endsWith('.md')) {
+                const html = renderMarkdownToHtml(content);
+                elements.editor.innerHTML = html;
+            } else if (fileName.endsWith('.html')) {
+                elements.editor.innerHTML = content;
+            } else {
+                elements.editor.textContent = content;
+            }
+
+            updateAutoSaveIndicator('saved');
+            scheduleAutoSave();
+        }
+
+        /**
+         * Save as Markdown
+         */
+        async function saveAsMarkdown() {
+            const markdown = getMarkdownFromEditor();
+
+            try {
+                if (isFileSystemAccessSupported()) {
+                    let fileHandle = state.currentFileHandle;
+
+                    if (!fileHandle || !state.currentFileName.endsWith('.md')) {
+                        fileHandle = await window.showSaveFilePicker({
+                            suggestedName: state.currentFileName.endsWith('.md') ?
+                                state.currentFileName : 'dokument.md',
+                            types: [
+                                {
+                                    description: 'Markdown Files',
+                                    accept: { 'text/markdown': ['.md'] }
+                                }
+                            ]
+                        });
+                        state.currentFileHandle = fileHandle;
+                    }
+
+                    const writable = await fileHandle.createWritable();
+                    await writable.write(markdown);
+                    await writable.close();
+
+                    updateFileName(fileHandle.name);
+                    updateAutoSaveIndicator('saved');
+                } else {
+                    downloadFile(markdown,
+                        state.currentFileName.endsWith('.md') ?
+                        state.currentFileName : 'dokument.md',
+                        'text/markdown');
+                }
+            } catch (error) {
+                if (error.name !== 'AbortError') {
+                    console.error('Error saving file:', error);
+                    showNotification('Fehler beim Speichern: ' + error.message, 'error');
+                }
+            }
+        }
+
+        /**
+         * Export as HTML
+         */
+        async function exportAsHtml() {
+            const html = getHtmlFromEditor();
+            const fullHtml = generateFullHtmlDocument(html);
+
+            try {
+                if (isFileSystemAccessSupported()) {
+                    const fileHandle = await window.showSaveFilePicker({
+                        suggestedName: state.currentFileName.replace(/\.(md|html|txt)$/, '') + '.html',
+                        types: [
+                            {
+                                description: 'HTML Files',
+                                accept: { 'text/html': ['.html'] }
+                            }
+                        ]
+                    });
+
+                    const writable = await fileHandle.createWritable();
+                    await writable.write(fullHtml);
+                    await writable.close();
+                } else {
+                    const fileName = state.currentFileName.replace(/\.(md|html|txt)$/, '') + '.html';
+                    downloadFile(fullHtml, fileName, 'text/html');
+                }
+            } catch (error) {
+                if (error.name !== 'AbortError') {
+                    console.error('Error exporting HTML:', error);
+                    showNotification('Fehler beim Exportieren: ' + error.message, 'error');
+                }
+            }
+        }
+
+        /**
+         * Generate full HTML document
+         */
+        function generateFullHtmlDocument(bodyHtml) {
+            return `<!DOCTYPE html>
+<!-- Generated by MarkWrite - https://github.com/trstnbde -->
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="MarkWrite">
+    <title>${state.currentFileName}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans', sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem;
+            line-height: 1.6;
+            color: #333;
+        }
+        h1 { font-size: 2em; font-weight: 700; margin: 0.67em 0; border-bottom: 2px solid #eee; padding-bottom: 0.3em; }
+        h2 { font-size: 1.5em; font-weight: 600; margin: 0.75em 0 0.5em 0; border-bottom: 1px solid #eee; padding-bottom: 0.3em; }
+        h3 { font-size: 1.17em; font-weight: 600; margin: 1em 0 0.5em 0; }
+        code { background-color: #f4f4f4; padding: 2px 6px; border-radius: 3px; font-family: 'Courier New', monospace; color: #e83e8c; }
+        pre { background-color: #f4f4f4; padding: 1em; border-radius: 5px; overflow-x: auto; }
+        pre code { background-color: transparent; padding: 0; color: #333; }
+        blockquote { border-left: 4px solid #ddd; padding-left: 1em; margin: 1em 0; color: #666; font-style: italic; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        table th, table td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+        table th { background-color: #f4f4f4; font-weight: 600; }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        a { color: #3b82f6; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+${bodyHtml}
+<footer style="margin-top: 3rem; padding-top: 1rem; border-top: 1px solid #eee; font-size: 0.875rem; color: #666; text-align: center;">
+    Generated by <a href="https://github.com/trstnbde" target="_blank">MarkWrite</a>
+</footer>
+</body>
+</html>`;
+        }
+
+        /**
+         * Download file (fallback)
+         */
+        function downloadFile(content, fileName, mimeType) {
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        /**
+         * Create new document
+         */
+        function newDocument() {
+            if (state.isDirty) {
+                if (!confirm('Möchten Sie ein neues Dokument erstellen? Ungespeicherte Änderungen gehen verloren.')) {
+                    return;
+                }
+            }
+
+            elements.editor.innerHTML = '';
+            state.currentFileHandle = null;
+            updateFileName('Unbenanntes Dokument');
+            storage.remove(STORAGE_KEY);
+            updateAutoSaveIndicator('saved');
+            elements.editor.focus();
+        }
+
+        // ===== EVENT LISTENERS =====
+
+        // Main toolbar buttons
+        elements.openBtn.addEventListener('click', openFile);
+        elements.saveBtn.addEventListener('click', saveAsMarkdown);
+        elements.exportHtmlBtn.addEventListener('click', exportAsHtml);
+        elements.newBtn.addEventListener('click', newDocument);
+        elements.viewModeBtn.addEventListener('click', toggleViewMode);
+
+        // File input fallback
+        elements.fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            try {
+                const content = await file.text();
+                updateFileName(file.name);
+                loadFileContent(content, file.name);
+            } catch (error) {
+                console.error('Error reading file:', error);
+                showNotification('Fehler beim Lesen der Datei', 'error');
+            }
+
+            elements.fileInput.value = '';
+        });
+
+        // Paragraph format dropdown
+        elements.paragraphDropdownToggle.addEventListener('click', () => {
+            toggleDropdown(elements.paragraphDropdown, elements.paragraphDropdownToggle);
+        });
+
+        elements.paragraphDropdown.querySelectorAll('.dropdown-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const format = item.getAttribute('data-format');
+                formatBlock(format);
+                elements.paragraphDropdown.classList.remove('show');
+                elements.paragraphDropdownToggle.setAttribute('aria-expanded', 'false');
+            });
+        });
+
+        // Text style buttons
+        elements.boldBtn.addEventListener('click', () => execCommand('bold'));
+        elements.italicBtn.addEventListener('click', () => execCommand('italic'));
+        elements.underlineBtn.addEventListener('click', () => execCommand('underline'));
+        elements.strikeBtn.addEventListener('click', () => execCommand('strikeThrough'));
+        elements.quoteBtn.addEventListener('click', () => formatBlock('blockquote'));
+        elements.linkBtn.addEventListener('click', showLinkModal);
+
+        // Alignment buttons
+        elements.alignLeftBtn.addEventListener('click', () => setAlignment('left'));
+        elements.alignCenterBtn.addEventListener('click', () => setAlignment('center'));
+        elements.alignRightBtn.addEventListener('click', () => setAlignment('right'));
+        elements.alignJustifyBtn.addEventListener('click', () => setAlignment('justify'));
+
+        // Advanced tools
+        elements.toggleAdvancedBtn.addEventListener('click', toggleAdvancedTools);
+        elements.ulBtn.addEventListener('click', () => execCommand('insertUnorderedList'));
+        elements.olBtn.addEventListener('click', () => execCommand('insertOrderedList'));
+        elements.hrBtn.addEventListener('click', insertHorizontalRule);
+        elements.codeBtn.addEventListener('click', () => {
+            const selection = window.getSelection();
+            const selectedText = selection.toString();
+            if (selectedText) {
+                const code = document.createElement('code');
+                code.textContent = selectedText;
+                const range = selection.getRangeAt(0);
+                range.deleteContents();
+                range.insertNode(code);
+            }
+            elements.editor.focus();
+            scheduleAutoSave();
+        });
+        elements.tableBtn.addEventListener('click', insertTable);
+        elements.undoBtn.addEventListener('click', () => execCommand('undo'));
+        elements.redoBtn.addEventListener('click', () => execCommand('redo'));
+
+        // Link modal - IMPROVED with validation
+        elements.linkModalClose.addEventListener('click', hideLinkModal);
+        elements.linkModalCancel.addEventListener('click', hideLinkModal);
+
+        // Link URL input validation
+        elements.linkUrl.addEventListener('input', () => {
+            elements.linkUrl.classList.remove('error');
+            elements.linkUrlError.classList.remove('show');
+        });
+
+        // Link insertion with validation
+        elements.linkModalInsert.addEventListener('click', () => {
+            const text = elements.linkText.value.trim();
+            const url = elements.linkUrl.value.trim();
+
+            if (!url) {
+                elements.linkUrl.classList.add('error');
+                elements.linkUrlError.textContent = 'Bitte geben Sie eine URL ein';
+                elements.linkUrlError.classList.add('show');
+                elements.linkUrl.focus();
+                return;
+            }
+
+            if (insertLink(text, url)) {
+                hideLinkModal();
+            }
+        });
+
+        elements.linkModal.addEventListener('click', (e) => {
+            if (e.target === elements.linkModal) hideLinkModal();
+        });
+
+        // Close dropdowns on outside click
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.dropdown')) {
+                document.querySelectorAll('.dropdown-menu').forEach(d => d.classList.remove('show'));
+                elements.paragraphDropdownToggle.setAttribute('aria-expanded', 'false');
+            }
+        });
+
+        // Editor events
+        elements.editor.addEventListener('input', () => {
+            scheduleAutoSave();
+
+            clearTimeout(state.typingTimer);
+            state.typingTimer = setTimeout(() => {
+                updateToolbarState();
+            }, TYPING_DELAY);
+        });
+
+        elements.editor.addEventListener('paste', (e) => {
+            e.preventDefault();
+            const text = e.clipboardData.getData('text/plain');
+            document.execCommand('insertText', false, text);
+        });
+
+        elements.editor.addEventListener('mouseup', updateToolbarState);
+        elements.editor.addEventListener('keyup', updateToolbarState);
+        elements.editor.addEventListener('focus', updateToolbarState);
+
+        // ===== KEYBOARD SHORTCUTS =====
+
+        document.addEventListener('keydown', (e) => {
+            const ctrl = e.ctrlKey || e.metaKey;
+
+            // File operations
+            if (ctrl && e.key === 's') {
+                e.preventDefault();
+                saveAsMarkdown();
+            } else if (ctrl && e.key === 'o') {
+                e.preventDefault();
+                openFile();
+            } else if (ctrl && e.key === 'n') {
+                e.preventDefault();
+                newDocument();
+            } else if (ctrl && e.key === 'e') {
+                e.preventDefault();
+                exportAsHtml();
+            }
+            // Formatting
+            else if (ctrl && e.key === 'b') {
+                e.preventDefault();
+                execCommand('bold');
+            } else if (ctrl && e.key === 'i') {
+                e.preventDefault();
+                execCommand('italic');
+            } else if (ctrl && e.key === 'u') {
+                e.preventDefault();
+                execCommand('underline');
+            } else if (ctrl && e.key === 'k') {
+                e.preventDefault();
+                showLinkModal();
+            } else if (ctrl && e.key === 'z' && !e.shiftKey) {
+                e.preventDefault();
+                execCommand('undo');
+            } else if (ctrl && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+                e.preventDefault();
+                execCommand('redo');
+            } else if (ctrl && e.key >= '1' && e.key <= '6') {
+                e.preventDefault();
+                formatBlock('h' + e.key);
+            } else if (ctrl && e.key === '0') {
+                e.preventDefault();
+                formatBlock('p');
+            }
+            // UI
+            else if (e.key === 'Escape') {
+                hideLinkModal();
+                document.querySelectorAll('.dropdown-menu').forEach(d => d.classList.remove('show'));
+            } else if (e.key === 'Enter' && elements.linkModal.classList.contains('show')) {
+                e.preventDefault();
+                elements.linkModalInsert.click();
+            }
+        });
+
+        // Warn before unload if dirty
+        window.addEventListener('beforeunload', (e) => {
+            if (state.isDirty) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
+
+        // ===== INITIALIZATION =====
+
+        function init() {
+            console.log('MarkWrite v1.0 initialized');
+            console.log('Copyright (c) 2025 trstnbde');
+            console.log('File System Access API:', isFileSystemAccessSupported() ? 'supported' : 'not supported');
+
+            // Restore from localStorage
+            restoreFromLocalStorage();
+
+            // Initialize toolbar state
+            updateToolbarState();
+
+            // Focus editor
+            elements.editor.focus();
+        }
+
+        // Start the application
+        init();
+    </script>
+</body>
+</html>
