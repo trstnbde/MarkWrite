@@ -30,10 +30,10 @@ No installation required! Simply open `index.html` in a modern web browser.
 
 ```bash
 # Clone the repository
-git clone https://github.com/trstnbde/typora.git
+git clone https://github.com/trstnbde/MarkWrite.git
 
 # Navigate to the project
-cd typora
+cd MarkWrite
 
 # Open in browser
 open index.html  # macOS
@@ -43,7 +43,7 @@ start index.html  # Windows
 
 ### Online Demo
 
-Visit the [live demo](https://your-demo-url.com) to try it immediately without downloading.
+Visit the [live demo](https://bundeshub.de/lab/MarkWrite/) to try it immediately without downloading.
 
 ## 📚 Usage
 
@@ -355,7 +355,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support
 
-- **Issues**: [GitHub Issues](https://github.com/trstnbde/typora/issues)
+- **Issues**: [GitHub Issues](https://github.com/trstnbde/MarkWrite/issues)
 - **Author**: [trstnbde](https://github.com/trstnbde)
 
 ---
